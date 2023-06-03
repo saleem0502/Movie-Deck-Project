@@ -6,6 +6,7 @@ class Movie {
       this.rating = rating;
       this.voteCount = voteCount;
       this.posterPath = posterPath;
+      this.isFavourite = false;
     }
   
     createMovieCard() {
@@ -20,9 +21,13 @@ class Movie {
               <img src=${imgSrc} alt="${this.title}">
           </div>
           <h3 class="card-name">${this.title}</h3>
+          ${this.isFavourite
+            ? `<button id="${this.id}-fav-btn" onClick="toggleFavorite(${this.id})">Remove from favorites</button>`
+            : `<button id="${this.id}-fav-btn" onClick="toggleFavorite(${this.id})">Add to favorites</button>`
+          }
           <button id="${this.id}-btn" onClick="showMore(${this.id}, ${true})">Show more</button>
       </div>
-      <div id="${this.id}-details" >
+      <div id="${this.id}-details" style="display:none">
           <h4>Release Date - ${this.releaseDate}</h4>
           <h5>Avg Rating - ${this.rating}</h5>
           <h5>Number of Ratings - ${this.voteCount}</h5>
@@ -31,6 +36,29 @@ class Movie {
       return card;
     }
 }
+
+function toggleFavorite(movieId) {
+	const movie = movieList.find((movie) => movie.id === movieId);
+  if(movie.isFavourite){
+  			movie.isFavourite = false;
+    } else {
+        movie.isFavourite = true;
+   }
+   updateFavourites(movie);
+   displayMovies(movieList);
+}
+
+function updateFavourites(movie){
+	let favourites = JSON.parse(localStorage.getItem('favourites')) || [];
+  if(movie.isFavourite){
+  	favourites.push(movie.id);
+  }else{
+  	favourites = favourites.filter(id => id != movie.id);
+  }
+  localStorage.setItem('favourites',JSON.stringify(favourites));
+}
+
+
 
 const showMore = (id, show) => {
     var showMoreButton = document.getElementById(`${id}-btn`);
@@ -57,14 +85,29 @@ function displayMovies(movieList) {
         cardDisplay.appendChild(noResultMessage);
     } else {
         movieList.forEach((movie) => {
+        
+        if(currentTab == "fav" && !movie.isFavourite)return;
+        
         const card = movie.createMovieCard();
         cardDisplay.appendChild(card);
         });
     }
 }
 
+
+let currentTab = "all";
+function handleTabsChange(event){
+	const previousTab = document.querySelector(`li[value=${currentTab}]`);
+  previousTab.classList.remove('active');
+  currentTab = event.target.getAttribute('value');
+  event.target.classList.add('active');
+  displayMovies(movieList);
+}
+
 const fetchMovies = async () => {
-    const data = await fetch(url);
+	try{
+	  console.log("Fetching the data");
+		const data = await fetch(url);
     const jsonData = await data.json();
     movieList = jsonData.results.map(
         (movie) =>
@@ -77,8 +120,27 @@ const fetchMovies = async () => {
             movie.poster_path
         )
     );
+    loadFavourites();
     displayMovies(movieList);
+	}catch(error){
+		console.log("Error: ", error);
+    const errorMessage = document.createElement('p');
+    errorMessage.textContent = "Sorry, something went wrong. Please check your internet connection and try again. ";
+    document.getElementById()
+	}
+    
+   
 };
+
+function loadFavourites(){
+	const favourites = JSON.parse(localStorage.getItem('favourites'));
+	if(!favourites)return;
+  movieList.forEach((movie) => {
+			if(favourites.includes(movie.id)){
+      	movie.isFavourite = true;
+      }
+	})
+}
 
 function sortMovies(array, order) {
     if (order === "rating-asc") {
@@ -109,6 +171,8 @@ function init () {
     sortBySelect.addEventListener('change', handleSortChange);
     const searchBox = document.getElementById('search-box');
     searchBox.addEventListener('input', handleSearchInput);
+    const tabs = document.querySelectorAll('.tabs .tab');
+    tabs.forEach(tab => tab.addEventListener('click', handleTabsChange))
     fetchMovies();
 }
 
